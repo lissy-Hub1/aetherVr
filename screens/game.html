@@ -8,13 +8,13 @@
     <title>Aether</title>
     <link rel="stylesheet" href="../css/style.css">
     <script type="importmap">
-    {
-        "imports": {
-            "three": "https://unpkg.com/three@0.163.0/build/three.module.js",
-            "three/addons/": "https://unpkg.com/three@0.163.0/examples/jsm/",
-            "cannon-es": "https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.163.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.163.0/examples/jsm/",
+                "cannon-es": "https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"
+            }
         }
-    }
     </script>
     
 </head>
@@ -43,13 +43,17 @@
     </div>
 
     <!-- Scripts de Three.js -->
-  
+    <script src="https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.163.0/examples/js/controls/VRControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.163.0/examples/js/effects/VREffect.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.163.0/examples/js/webxr/VRButton.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"></script>
     <!-- Scripts del juego -->
     <script type="module" src="../js/environment.js"></script>
-    <script src="../js/physics.js"></script>
-    <script type="module" src="../js/controls.js"></script>
+    <script type="module" src="../js/physics.js"></script>
+    <script  type="module" src="../js/controls.js"></script>
     <script src="../js/animations.js"></script>
-    <script  type="module" src="../js/main.js"></script>
+    <script type="module" src="../js/main.js"></script>
 </body>
 
 </html>

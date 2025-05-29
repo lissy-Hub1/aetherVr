@@ -4,6 +4,13 @@
  */
 
 import * as THREE from 'three';
+import * as CANNON from 'cannon-es';
+import { VRButton } from 'three/addons/webxr/VRButton.js';
+
+export { 
+    initControls,
+    
+};
 
 // Estado de las teclas
 const keyState = {

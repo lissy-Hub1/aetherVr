@@ -3,11 +3,22 @@
  * Gestiona la física del juego y las colisiones
  */
 
+import * as CANNON from 'cannon-es';
+export let world;
+
+
 // Variables globales para la física
 let physicsMaterial;
 let playerContactMaterial;
 let playerIsOnGround = false;
 let jumpCooldown = 0;
+
+export { 
+    initPhysics,
+    isOnGround,
+    jump,
+    moveCharacter
+};
 
 // Inicializar el sistema de física
 function initPhysics() {

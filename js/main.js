@@ -6,8 +6,13 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { VRButton } from 'three/addons/webxr/VRButton.js';
-import { VRControls } from 'three/addons/controls/VRControls.js';
-import { VREffect } from 'three/addons/effects/VREffect.js';
+
+
+
+// Importa tus otros módulos
+import { initPhysics } from './physics.js';
+import { initControls } from './controls.js';
+import { createEnvironment } from './environment.js';
 
 // Variables globales
 let scene, camera, renderer, clock, mixer;
@@ -38,15 +43,15 @@ const victoryElement = document.querySelector('.victory');
 // Inicialización del juego
 
 function init() {
-    // Inicializar escena
+    // Escena
     scene = new THREE.Scene();
     clock = new THREE.Clock();
     
-    // Configurar cámara
+    // Cámara
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.set(0, 1.7, 0);
     
-    // Configurar renderer
+    // Renderer con WebXR habilitado
     renderer = new THREE.WebGLRenderer({ 
         canvas: document.getElementById('gameCanvas'),
         antialias: true 
@@ -56,26 +61,19 @@ function init() {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     
-    // Habilitar WebXR
+    // Configuración WebXR
     renderer.xr.enabled = true;
     document.body.appendChild(VRButton.createButton(renderer));
     
-    // Configurar efecto VR
-    vrEffect = new THREE.VREffect(renderer);
-    vrEffect.setSize(window.innerWidth, window.innerHeight);
-    
-    // Configurar controles VR
-    vrControls = new THREE.VRControls(camera);
-    vrControls.standing = true;
-    
-    // Resto de la inicialización...
+    // Física, entorno y controles
+    initAudio();
     initPhysics();
     createEnvironment();
     loadCharacter();
     initControls();
-    initAudio();
     
-    // Iniciar bucle de renderizado
+    
+    // Iniciar bucle
     gameState.isRunning = true;
     animate();
     
@@ -208,18 +206,11 @@ function animate() {
         if (gameState.isRunning) {
             const delta = clock.getDelta();
             
-            // Actualizar controles VR
-            if (renderer.xr.isPresenting) {
-                vrControls.update();
-            }
-            
-            // Resto de la lógica del juego...
+            // Actualizar física
             world.step(timeStep);
             character.position.copy(characterBody.position);
             
-            if (mixer) {
-                mixer.update(delta);
-            }
+            if (mixer) mixer.update(delta);
             
             updateControls(delta);
             updateEnvironment(delta);

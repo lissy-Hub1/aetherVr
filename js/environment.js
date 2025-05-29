@@ -6,13 +6,18 @@
 
 
 import * as THREE from 'three';
-
+import * as CANNON from 'cannon-es';    
 
 // Arrays para gestionar objetos
 let platforms = [];
 let crystals = [];
 let fallingCubes = [];
 let spawnPoints = [];
+
+export { 
+    createEnvironment,
+    
+};
 
 // Información de los niveles
 const LEVELS = {
