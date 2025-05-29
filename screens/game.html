@@ -8,16 +8,15 @@
     <title>Aether</title>
     <link rel="stylesheet" href="../css/style.css">
     <script type="importmap">
-        {
-          "imports": {
-                "three": "https://unpkg.com/three@0.163.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.163.0/examples/jsm/",
-                "three/addons/controls/OrbitControls.js": "https://unpkg.com/three@0.163.0/examples/jsm/controls/OrbitControls.js",
-                "three/addons/webxr/VRButton.js": "https://unpkg.com/three@0.163.0/examples/jsm/webxr/VRButton.js",
-                "cannon-es": "https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"
-            }
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.163.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.163.0/examples/jsm/",
+            "cannon-es": "https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"
         }
+    }
     </script>
+    
 </head>
 
 <body>
@@ -44,20 +43,13 @@
     </div>
 
     <!-- Scripts de Three.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.7/dat.gui.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/VRControls.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/effects/VREffect.js"></script>
-
+  
     <!-- Scripts del juego -->
-    <script src="../js/environment.js"></script>
+    <script type="module" src="../js/environment.js"></script>
     <script src="../js/physics.js"></script>
-    <script src="../js/controls.js"></script>
+    <script type="module" src="../js/controls.js"></script>
     <script src="../js/animations.js"></script>
-    <script src="../js/main.js"></script>
+    <script  type="module" src="../js/main.js"></script>
 </body>
 
 </html>

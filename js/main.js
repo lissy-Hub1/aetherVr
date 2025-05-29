@@ -3,6 +3,12 @@
  * Archivo principal que inicializa y gestiona el juego
  */
 
+import * as THREE from 'three';
+import * as CANNON from 'cannon-es';
+import { VRButton } from 'three/addons/webxr/VRButton.js';
+import { VRControls } from 'three/addons/controls/VRControls.js';
+import { VREffect } from 'three/addons/effects/VREffect.js';
+
 // Variables globales
 let scene, camera, renderer, clock, mixer;
 let world, timeStep = 1/60;

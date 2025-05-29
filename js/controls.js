@@ -3,6 +3,8 @@
  * Gestiona los controles del jugador por teclado y mouse
  */
 
+import * as THREE from 'three';
+
 // Estado de las teclas
 const keyState = {
     forward: false,
