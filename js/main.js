@@ -18,6 +18,9 @@ let gameState = {
     isVictory: false
 };
 
+let vrControls;
+let vrEffect;
+
 let fallStartHeight = null;
 const fallThreshold = 10; 
 
@@ -27,6 +30,7 @@ const gameOverElement = document.querySelector('.game-over');
 const victoryElement = document.querySelector('.victory');
 
 // Inicialización del juego
+
 function init() {
     // Inicializar escena
     scene = new THREE.Scene();
@@ -34,7 +38,7 @@ function init() {
     
     // Configurar cámara
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 1.7, 0); // Ajustar a la altura de los ojos del personaje
+    camera.position.set(0, 1.7, 0);
     
     // Configurar renderer
     renderer = new THREE.WebGLRenderer({ 
@@ -46,24 +50,29 @@ function init() {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     
-    // Inicializar física
+    // Habilitar WebXR
+    renderer.xr.enabled = true;
+    document.body.appendChild(VRButton.createButton(renderer));
+    
+    // Configurar efecto VR
+    vrEffect = new THREE.VREffect(renderer);
+    vrEffect.setSize(window.innerWidth, window.innerHeight);
+    
+    // Configurar controles VR
+    vrControls = new THREE.VRControls(camera);
+    vrControls.standing = true;
+    
+    // Resto de la inicialización...
     initPhysics();
-    
-    // Crear entorno (plano, iluminación, niebla, objetos)
     createEnvironment();
-    
-    // Cargar personaje
     loadCharacter();
-    
-    // Inicializar controles
     initControls();
+    initAudio();
     
     // Iniciar bucle de renderizado
     gameState.isRunning = true;
     animate();
-    initAudio();
     
-    // Evento para redimensionar la ventana
     window.addEventListener('resize', onWindowResize);
 }
 
@@ -189,37 +198,31 @@ function restartGame() {
 
 // Bucle de renderizado principal
 function animate() {
-    requestAnimationFrame(animate);
-    
-    if (gameState.isRunning) {
-        const delta = clock.getDelta();
-        
-        // Actualizar física
-        world.step(timeStep);
-        
-        // Actualizar posición del personaje según la física
-        character.position.copy(characterBody.position);
-        
-        // Actualizar animaciones si hay un mixer
-        if (mixer) {
-            mixer.update(delta);
+    renderer.setAnimationLoop(function() {
+        if (gameState.isRunning) {
+            const delta = clock.getDelta();
+            
+            // Actualizar controles VR
+            if (renderer.xr.isPresenting) {
+                vrControls.update();
+            }
+            
+            // Resto de la lógica del juego...
+            world.step(timeStep);
+            character.position.copy(characterBody.position);
+            
+            if (mixer) {
+                mixer.update(delta);
+            }
+            
+            updateControls(delta);
+            updateEnvironment(delta);
+            checkCollisions();
+            checkGameConditions();
         }
         
-        // Actualizar controles del jugador
-        updateControls(delta);
-        
-        // Actualizar entorno (cubos cayendo, plataformas moviéndose, etc.)
-        updateEnvironment(delta);
-        
-        // Comprobar colisiones especiales (cristales, etc.)
-        checkCollisions();
-        
-        // Verificar victoria/derrota
-        checkGameConditions();
-    }
-    
-    // Renderizar escena
-    renderer.render(scene, camera);
+        renderer.render(scene, camera);
+    });
 }
 
 // Ajustar tamaño al redimensionar la ventana
@@ -227,6 +230,7 @@ function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+    vrEffect.setSize(window.innerWidth, window.innerHeight);
 }
 
 

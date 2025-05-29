@@ -1,266 +1,299 @@
 /**
- * AETHER RUN VR - Sistema de Controles para Realidad Virtual
+ * AETHER RUN - Sistema de controles
+ * Gestiona los controles del jugador por teclado y mouse
  */
 
-let leftController, rightController;
-let teleportPoints = [];
-let teleportTarget = null;
-let controllerModelFactory;
-let interactionDistance = 5;
+// Estado de las teclas
+const keyState = {
+    forward: false,
+    backward: false,
+    left: false,
+    right: false,
+    jump: false,
+    sprint: false,
+    interact: false
+};
 
-// Inicializar controles VR
-function initVRControls() {
-    // 1. Crear grupo para controles
-    vrControls = new THREE.Group();
-    scene.add(vrControls);
-    
-    // 2. Configurar fábrica de modelos de controladores
-    controllerModelFactory = new XRControllerModelFactory();
-    
-    // 3. Configurar controlador izquierdo (movimiento)
-    leftController = renderer.xr.getController(0);
-    leftController.addEventListener('selectstart', onSelectStart);
-    leftController.addEventListener('selectend', onSelectEnd);
-    vrControls.add(leftController);
-    
-    // Añadir modelo visual al controlador
-    const leftControllerModel = controllerModelFactory.createControllerModel(leftController);
-    leftController.add(leftControllerModel);
-    
-    // 4. Configurar controlador derecho (interacción)
-    rightController = renderer.xr.getController(1);
-    rightController.addEventListener('selectstart', onInteractStart);
-    vrControls.add(rightController);
-    
-    // Añadir modelo visual al controlador
-    const rightControllerModel = controllerModelFactory.createControllerModel(rightController);
-    rightController.add(rightControllerModel);
-    
-    // 5. Configurar rayo para interacción
-    const rightControllerGrip = renderer.xr.getControllerGrip(1);
-    const controllerRay = new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(0, 0, 0),
-            new THREE.Vector3(0, 0, -interactionDistance)
-        ]),
-        new THREE.LineBasicMaterial({ color: 0x8888ff, linewidth: 2 })
-    );
-    controllerRay.name = 'ray';
-    rightController.add(controllerRay.clone());
-    
-    // 6. Crear puntos de teleportación
-    createTeleportPoints();
-    
-    // 7. Configurar cuerpo físico del jugador
-    characterBody = new CANNON.Body({
-        mass: 70,
-        shape: new CANNON.Sphere(0.3),
-        position: new CANNON.Vec3(0, 1.6, 0),
-        fixedRotation: true,
-        linearDamping: 0.5
-    });
-    world.addBody(characterBody);
-    
-    // 8. Crear representación visual del jugador (solo para depuración)
-    character = new THREE.Mesh(
-        new THREE.SphereGeometry(0.3, 16, 16),
-        new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true })
-    );
-    character.visible = false; // Ocultar en producción
-    scene.add(character);
+// Dirección del movimiento
+const moveDirection = new THREE.Vector3();
+
+// Elemento del menú de pausa
+let pauseMenu;
+
+// Inicializar controles
+function initControls() {
+    // Configurar controles para VR
+    if (renderer.xr.isPresenting) {
+        // Controles para VR
+        const controller1 = renderer.xr.getController(0);
+        const controller2 = renderer.xr.getController(1);
+        scene.add(controller1);
+        scene.add(controller2);
+        
+        // Configurar eventos de los controles VR
+        controller1.addEventListener('selectstart', () => {
+            keyState.jump = true;
+        });
+        
+        controller1.addEventListener('selectend', () => {
+            keyState.jump = false;
+        });
+        
+        // Configurar movimiento basado en la posición del controlador
+        // (Aquí puedes agregar más lógica para los controles VR)
+    } else {
+        // Controles tradicionales (como antes)
+        controls = new THREE.PointerLockControls(camera, document.body);
+        character.add(camera);
+        
+        document.getElementById('gameCanvas').addEventListener('click', () => {
+            if (gameState.isRunning && !gameState.isGameOver && !gameState.isVictory) {
+                controls.lock();
+            }
+        });
+        
+        controls.addEventListener('lock', () => {
+            gameState.isRunning = true;
+            hidePauseMenu();
+        });
+        
+        controls.addEventListener('unlock', () => {
+            if (!gameState.isGameOver && !gameState.isVictory) {
+                gameState.isRunning = false;
+                if (!pauseMenu.style.display || pauseMenu.style.display === 'none') {
+                    showPauseMenu();
+                }
+            }
+        });
+        
+        setupKeyboardControls();
+        createPauseMenu();
+    }
 }
 
-// Crear puntos de teleportación
-function createTeleportPoints() {
-    // Crear puntos en las plataformas principales
-    platforms.forEach((platform, index) => {
-        if (index % 3 === 0) { // Cada tercera plataforma
-            const point = new THREE.Mesh(
-                new THREE.RingGeometry(0.2, 0.25, 32),
-                new THREE.MeshBasicMaterial({ 
-                    color: 0x00ff00, 
-                    side: THREE.DoubleSide,
-                    transparent: true,
-                    opacity: 0.7
-                })
-            );
-            point.rotation.x = -Math.PI / 2;
-            point.position.copy(platform.mesh.position);
-            point.position.y += 0.05;
-            point.userData.isTeleportPoint = true;
-            scene.add(point);
-            teleportPoints.push(point);
+// Crear el menú de pausa
+function createPauseMenu() {
+    // Crear el contenedor del menú de pausa
+    pauseMenu = document.createElement('div');
+    pauseMenu.id = 'pauseMenu';
+    pauseMenu.style.position = 'fixed';
+    pauseMenu.style.top = '0';
+    pauseMenu.style.left = '0';
+    pauseMenu.style.width = '100%';
+    pauseMenu.style.height = '100%';
+    pauseMenu.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'; // Fondo oscurecido semitransparente
+    pauseMenu.style.display = 'none';
+    pauseMenu.style.flexDirection = 'column';
+    pauseMenu.style.justifyContent = 'center';
+    pauseMenu.style.alignItems = 'center';
+    pauseMenu.style.zIndex = '1000';
+    
+    // Título del menú
+    const title = document.createElement('h2');
+    title.textContent = 'JUEGO PAUSADO';
+    title.style.color = 'white';
+    title.style.marginBottom = '30px';
+    title.style.fontSize = '32px';
+    
+    // Botón para continuar el juego
+    const continueButton = createButton('Continuar Juego', () => {
+        hidePauseMenu();
+        controls.lock();
+    });
+    
+    // Botón para volver al inicio
+    const homeButton = createButton('Volver al Inicio', () => {
+        window.location.href = '../index.html';
+    });
+    
+    // Añadir elementos al menú
+    pauseMenu.appendChild(title);
+    pauseMenu.appendChild(continueButton);
+    pauseMenu.appendChild(homeButton);
+    
+    // Añadir el menú al documento
+    document.body.appendChild(pauseMenu);
+}
+
+// Función auxiliar para crear botones
+function createButton(text, onClick) {
+    const button = document.createElement('button');
+    button.textContent = text;
+    button.style.padding = '15px 30px';
+    button.style.fontSize = '18px';
+    button.style.margin = '10px';
+    button.style.backgroundColor = '#4CAF50';
+    button.style.color = 'white';
+    button.style.border = 'none';
+    button.style.borderRadius = '5px';
+    button.style.cursor = 'pointer';
+    button.style.transition = 'background-color 0.3s';
+    
+    button.addEventListener('mouseover', () => {
+        button.style.backgroundColor = '#45a049';
+    });
+    
+    button.addEventListener('mouseout', () => {
+        button.style.backgroundColor = '#4CAF50';
+    });
+    
+    button.addEventListener('click', onClick);
+    
+    return button;
+}
+
+// Mostrar el menú de pausa
+function showPauseMenu() {
+    pauseMenu.style.display = 'flex';
+    pauseBackgroundMusic(); 
+}
+
+// Ocultar el menú de pausa
+function hidePauseMenu() {
+    pauseMenu.style.display = 'none';
+    continueBackgroundMusic();
+}
+
+// Configurar los controles por teclado
+function setupKeyboardControls() {
+    // Evento al presionar una tecla
+    document.addEventListener('keydown', (event) => {
+        switch (event.key.toLowerCase()) {
+            case 'w':
+            case 'arrowup':
+                keyState.forward = true;
+                break;
+            case 's':
+            case 'arrowdown':
+                keyState.backward = true;
+                break;
+            case 'a':
+            case 'arrowleft':
+                keyState.right = true;
+                break;
+            case 'd':
+            case 'arrowright':
+                keyState.left = true;
+                break;
+            case ' ':
+                keyState.jump = true;
+                break;
+            case 'shift':
+                keyState.sprint = true;
+                break;
+            case 'e':
+                keyState.interact = true;
+                break;
+            case 'escape':
+                togglePause();
+                break;
+        }
+    });
+    
+    // Evento al soltar una tecla
+    document.addEventListener('keyup', (event) => {
+        switch (event.key.toLowerCase()) {
+            case 'w':
+            case 'arrowup':
+                keyState.forward = false;
+                break;
+            case 's':
+            case 'arrowdown':
+                keyState.backward = false;
+                break;
+            case 'a':
+            case 'arrowleft':
+                keyState.right = false;
+                break;
+            case 'd':
+            case 'arrowright':
+                keyState.left = false;
+                break;
+            case ' ':
+                keyState.jump = false;
+                break;
+            case 'shift':
+                keyState.sprint = false;
+                break;
+            case 'e':
+                keyState.interact = false;
+                break;
         }
     });
 }
 
-// Evento al comenzar selección (teleportación)
-function onSelectStart(event) {
-    const controller = event.target;
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromXRController(controller);
+// Alternar pausa del juego
+function togglePause() {
+    if (gameState.isGameOver || gameState.isVictory) return;
     
-    const intersects = raycaster.intersectObjects(teleportPoints);
-    if (intersects.length > 0) {
-        teleportTarget = intersects[0].object;
-        teleportTarget.material.color.setHex(0xffff00);
+    gameState.isRunning = !gameState.isRunning;
+    
+    if (gameState.isRunning) {
+        hidePauseMenu();
+        controls.lock();
         
-        // Mostrar destino previo
-        showTeleportDestination(teleportTarget.position);
-    }
-}
-
-// Evento al terminar selección (teleportación)
-function onSelectEnd() {
-    if (teleportTarget && !gameState.isTeleporting) {
-        gameState.isTeleporting = true;
+    } else {
+        showPauseMenu();
+        controls.unlock();
         
-        // Efecto de teleportación
-        const startPos = characterBody.position.clone();
-        const endPos = new CANNON.Vec3(
-            teleportTarget.position.x,
-            teleportTarget.position.y + 1.6,
-            teleportTarget.position.z
-        );
-        
-        new TWEEN.Tween({ t: 0 })
-            .to({ t: 1 }, 500)
-            .easing(TWEEN.Easing.Quadratic.InOut)
-            .onUpdate((obj) => {
-                CANNON.Vec3.lerp(startPos, endPos, obj.t, characterBody.position);
-                characterBody.velocity.set(0, 0, 0);
-            })
-            .onComplete(() => {
-                gameState.isTeleporting = false;
-                teleportTarget.material.color.setHex(0x00ff00);
-                teleportTarget = null;
-                hideTeleportDestination();
-            })
-            .start();
-    }
-}
 
-// Mostrar destino de teleportación
-function showTeleportDestination(position) {
-    if (!window.teleportMarker) {
-        window.teleportMarker = new THREE.Mesh(
-            new THREE.CircleGeometry(0.3, 32),
-            new THREE.MeshBasicMaterial({ 
-                color: 0x00ffff,
-                transparent: true,
-                opacity: 0.5
-            })
-        );
-        window.teleportMarker.rotation.x = -Math.PI / 2;
-        scene.add(window.teleportMarker);
     }
-    window.teleportMarker.position.copy(position);
-    window.teleportMarker.position.y += 0.05;
-}
-
-// Ocultar destino de teleportación
-function hideTeleportDestination() {
-    if (window.teleportMarker) {
-        window.teleportMarker.visible = false;
-    }
-}
-
-// Evento de interacción con objetos
-function onInteractStart(event) {
-    const controller = event.target;
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromXRController(controller);
-    
-    // Verificar colisión con cristales
-    const crystalIntersects = raycaster.intersectObjects(
-        crystals.filter(c => !c.collected).map(c => c.mesh)
-    );
-    
-    if (crystalIntersects.length > 0) {
-        collectCrystal(crystalIntersects[0].object);
-    }
-}
-
-// Recolectar cristal
-function collectCrystal(crystalMesh) {
-    const crystal = crystals.find(c => c.mesh === crystalMesh);
-    if (!crystal || crystal.collected) return;
-    
-    crystal.collected = true;
-    crystal.mesh.visible = false;
-    
-    // Incrementar energía
-    gameState.energy++;
-    updateHUD();
-    
-    // Efecto visual
-    const particleEffect = createParticleEffect(
-        crystal.mesh.position,
-        0x8be9fd,
-        50
-    );
-    scene.add(particleEffect);
-    
-    setTimeout(() => {
-        scene.remove(particleEffect);
-    }, 1000);
-}
-
-// Crear efecto de partículas
-function createParticleEffect(position, colorHex, count) {
-    const particles = new THREE.BufferGeometry();
-    const positions = new Float32Array(count * 3);
-    const sizes = new Float32Array(count);
-    
-    for (let i = 0; i < count; i++) {
-        const i3 = i * 3;
-        positions[i3] = (Math.random() - 0.5) * 2;
-        positions[i3 + 1] = (Math.random() - 0.5) * 2;
-        positions[i3 + 2] = (Math.random() - 0.5) * 2;
-        sizes[i] = Math.random() * 0.2 + 0.1;
-    }
-    
-    particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    particles.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
-    
-    const material = new THREE.PointsMaterial({
-        color: new THREE.Color(colorHex),
-        size: 0.1,
-        transparent: true,
-        opacity: 0.8,
-        blending: THREE.AdditiveBlending
-    });
-    
-    const particleSystem = new THREE.Points(particles, material);
-    particleSystem.position.copy(position);
-    
-    // Animación
-    new TWEEN.Tween(particleSystem.scale)
-        .to({ x: 3, y: 3, z: 3 }, 1000)
-        .start();
-    
-    new TWEEN.Tween(material)
-        .to({ opacity: 0 }, 1000)
-        .start();
-    
-    return particleSystem;
 }
 
 // Actualizar controles en cada frame
-function updateVRControls(delta) {
-    // Actualizar posición del personaje
-    if (character) {
-        character.position.copy(characterBody.position);
+function updateControls(delta) {
+    if (!gameState.isRunning) return;
+    
+    if (renderer.xr.isPresenting) {
+        // Lógica de movimiento para VR
+        const gamepad = navigator.getGamepads()[0];
+        if (gamepad) {
+            // Usar el joystick del controlador VR para movimiento
+            const xAxis = gamepad.axes[2] || 0;
+            const yAxis = gamepad.axes[3] || 0;
+            
+            moveDirection.set(xAxis, 0, -yAxis).normalize();
+            
+            // Rotación basada en la cabeza (ya manejada por VRControls)
+            const cameraDirection = camera.getWorldDirection(new THREE.Vector3());
+            cameraDirection.y = 0;
+            cameraDirection.normalize();
+            
+            const rightVector = new THREE.Vector3()
+                .crossVectors(camera.up, cameraDirection)
+                .normalize();
+            
+            const moveX = moveDirection.x * cameraDirection.x + moveDirection.z * rightVector.x;
+            const moveZ = moveDirection.x * cameraDirection.z + moveDirection.z * rightVector.z;
+            
+            moveDirection.set(moveX, 0, moveZ).normalize();
+            
+            // Sprint con botón secundario
+            keyState.sprint = gamepad.buttons[1]?.pressed || false;
+        }
+    } else {
+        // Lógica de movimiento tradicional (como antes)
+        moveDirection.set(0, 0, 0);
+        const cameraDirection = controls.getDirection(new THREE.Vector3(0, 0, -1)).normalize();
+        cameraDirection.y = 0;
+        
+        const rightVector = new THREE.Vector3()
+            .crossVectors(camera.up, cameraDirection)
+            .normalize();
+        
+        if (keyState.forward) moveDirection.add(cameraDirection);
+        if (keyState.backward) moveDirection.sub(cameraDirection);
+        if (keyState.left) moveDirection.sub(rightVector);
+        if (keyState.right) moveDirection.add(rightVector);
+        
+        if (moveDirection.length() > 0) {
+            moveDirection.normalize();
+        }
     }
     
-    // Actualizar Tween.js
-    TWEEN.update();
+    moveCharacter(moveDirection, keyState.sprint);
     
-    // Actualizar rayo de interacción
-    if (rightController) {
-        const ray = rightController.getObjectByName('ray');
-        if (ray) {
-            ray.scale.z = interactionDistance;
-        }
+    if (keyState.jump) {
+        jump();
     }
 }
