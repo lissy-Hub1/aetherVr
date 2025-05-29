@@ -1,0 +1,181 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Orbitron', sans-serif;
+    background-color: #0f0f1e;
+    color: #8be9fd;
+    height: 100vh;
+    overflow: hidden;
+    background-image: 
+        radial-gradient(circle at 15% 50%, #1e988933 0%, transparent 25%),
+        radial-gradient(circle at 85% 30%, #57c1e233 0%, transparent 25%);
+}
+
+.container {
+    /*background-image:url("https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/2b111d18-a9e5-4dfc-8be3-bb520c8889af/ded6bvr-34055df7-4566-49b7-8ded-255812a8aa9f.jpg/v1/fill/w_1192,h_670,q_70,strp/jagged__2d_fantasy_cave_landscape___symmetry_art__by_acidifyart_ded6bvr-pre.jpg?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9NzIwIiwicGF0aCI6IlwvZlwvMmIxMTFkMTgtYTllNS00ZGZjLThiZTMtYmI1MjBjODg4OWFmXC9kZWQ2YnZyLTM0MDU1ZGY3LTQ1NjYtNDliNy04ZGVkLTI1NTgxMmE4YWE5Zi5qcGciLCJ3aWR0aCI6Ijw9MTI4MCJ9XV0sImF1ZCI6WyJ1cm46c2VydmljZTppbWFnZS5vcGVyYXRpb25zIl19.hFufz0O0FrEpK31TYNiSJ4muoIP98NhQIsFJh4Uh6aA");
+    */
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+.game-intro {
+    max-width: 800px;
+    padding: 2rem;
+    background-color: rgba(15, 15, 30, 0.8);
+    border-radius: 12px;
+    border: 2px solid #bf4097;
+    box-shadow: 0 0 20px #fa50cd66, 
+                0 0 60px rgba(139, 233, 253, 0.2);
+}
+
+h1 {
+    font-size: 4rem;
+    margin-bottom: 1.5rem;
+    color: #bf4097;
+    text-shadow: 0 0 10px #91379cb3;
+    letter-spacing: 3px;
+}
+
+.description {
+    margin-bottom: 2rem;
+    line-height: 1.6;
+}
+
+.menu {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
+}
+
+.btn {
+    display: inline-block;
+    padding: 0.8rem 2rem;
+    margin-top: 8px;
+    background-color: #8062b8;
+    color: #0f0f1e;
+    text-decoration: none;
+    border-radius: 30px;
+    font-weight: bold;
+    font-size: 1.2rem;
+    transition: all 0.3s ease;
+    width: 200px;
+    border: none;
+    cursor: pointer;
+}
+
+.btn:hover {
+    background-color: #8be9fd;
+    box-shadow: 0 0 15px rgba(139, 233, 253, 0.7);
+    transform: translateY(-3px);
+}
+
+/* Estilos para la pantalla de juego */
+#gameCanvas {
+    display: block;
+    width: 100%;
+    height: 100vh;
+}
+
+.game-ui {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    color: #bf4097;
+    font-size: 1.2rem;
+    text-shadow: 0 0 5px rgba(0, 0, 0, 0.7);
+}
+
+.energy-counter {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.crystal-icon {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    background-color: #8be9fd;
+    border-radius: 3px;
+    box-shadow: 0 0 10px rgba(139, 233, 253, 0.7);
+}
+
+.controls-info {
+    max-width: 600px;
+    margin: 0 auto;
+    background-color: rgba(15, 15, 30, 0.8);
+    padding: 2rem;
+    border-radius: 12px;
+    border: 2px solid #bf4097;
+}
+
+.controls-info h2 {
+    margin-bottom: 1.5rem;
+    color: #bf4097;
+}
+
+.controls-list {
+    text-align: left;
+    margin-bottom: 2rem;
+}
+
+.controls-list li {
+    margin-bottom: 0.5rem;
+}
+
+.back-btn {
+    margin-top: 1rem;
+}
+
+/* Mensaje de Game Over */
+.game-over {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(15, 15, 30, 0.9);
+    padding: 2rem;
+    border-radius: 12px;
+    border: 2px solid #ff5555;
+    text-align: center;
+    display: none;
+}
+
+.game-over h2 {
+    font-size: 3rem;
+    color: #ff5555;
+    margin-bottom: 1rem;
+}
+
+/* Mensaje de Victoria */
+.victory {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(15, 15, 30, 0.9);
+    padding: 2rem;
+    border-radius: 12px;
+    border: 2px solid #bf4097;
+    text-align: center;
+    display: none;
+}
+
+.victory h2 {
+    font-size: 3rem;
+    color: #bf4097;
+    margin-bottom: 1rem;
+}
