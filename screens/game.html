@@ -5,18 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="description" content="Aether Run VR - Experiencia de Realidad Virtual">
     <link rel="icon" href="../assets/img/aether.png" type="image/x-icon">
-    <!-- THREE.js (core) -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
-
-    <!-- GLTFLoader (addon de Three.js) -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
     <title>Aether Run VR</title>
     <link rel="stylesheet" href="../css/style.css">
+    
+    <!-- ImportMap para módulos ES6 -->
     <script type="importmap">
         {
-          "imports": {
-                "three": "https://unpkg.com/three@0.163.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.163.0/examples/jsm/",
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.132.2/examples/jsm/",
                 "cannon-es": "https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"
             }
         }
@@ -29,7 +26,7 @@
     <div id="vr-ui">
         <div class="energy-counter">
             <span class="crystal-icon">🔮</span>
-            <span id="energyCount">0</span> / <span id="totalEnergy">10</span>
+            <span id="energyCount">0</span> / <span id="totalEnergy">14</span>
         </div>
     </div>
 
@@ -37,7 +34,7 @@
     <div id="game-over" class="vr-menu">
         <h2>GAME OVER</h2>
         <p>Has sido consumido por las grietas de Aether</p>
-        <button class="btn" onclick="restartGame()">REINTENTAR</button>
+        <button class="btn" onclick="window.restartGame()">REINTENTAR</button>
         <a href="../index.html" class="btn">INICIO</a>
     </div>
 
@@ -55,30 +52,23 @@
         </div>
     </div>
 
-    <!-- Scripts necesarios para VR -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.132.0/examples/js/loaders/GLTFLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.132.0/examples/js/webxr/VRButton.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.132.0/examples/js/webxr/XREstimatedLight.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.132.0/examples/js/controls/XRControllerModelFactory.js"></script>
-    
-    <!-- Scripts del juego VR -->
-    <script src="../js/environment.js"></script>
-    <script src="../js/physics.js"></script>
-    <script src="../js/controls.js"></script>
-    <script src="../js/main-vr.js"></script>
+    <!-- Scripts del juego como módulos ES6 -->
+    <script type="module" src="../js/main-vr.js"></script>
 
+    <!-- Script de carga tradicional -->
     <script>
         // Mostrar progreso de carga
         function updateProgress(percent) {
-            document.getElementById('loading-bar').style.width = percent + '%';
+            const loadingBar = document.getElementById('loading-bar');
+            if(loadingBar) loadingBar.style.width = percent + '%';
             if (percent >= 100) {
                 setTimeout(() => {
-                    document.getElementById('loading-screen').style.display = 'none';
+                    const loadingScreen = document.getElementById('loading-screen');
+                    if(loadingScreen) loadingScreen.style.display = 'none';
                 }, 500);
             }
         }
         
-        // Iniciar el juego cuando todo esté cargado
         window.addEventListener('load', () => {
             updateProgress(30);
             setTimeout(() => updateProgress(70), 500);
