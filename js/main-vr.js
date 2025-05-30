@@ -1,10 +1,10 @@
+/**
+ * AETHER RUN - Juego WebGL con Three.js
+ * Archivo principal que inicializa y gestiona el juego
+ */
+
 import * as THREE from 'three';
 import { VRButton } from 'three/addons/webxr/VRButton.js';
-import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
-import * as CANNON from 'cannon-es';
-import { setRendererAndCamera } from './physics.js';
-
-setRendererAndCamera(renderer, camera);
 
 // Variables globales
 let scene, camera, renderer, clock, mixer;
@@ -21,29 +21,29 @@ let gameState = {
     isVictory: false
 };
 
+let vrControls;
+let vrEffect;
+
 let fallStartHeight = null;
 const fallThreshold = 10; 
-let isVRMode = false;
-let playerIsOnGround = false;
-let jumpCooldown = 0;
 
 // Elementos del DOM
 const energyCountElement = document.getElementById('energyCount');
-const totalEnergyElement = document.getElementById('totalEnergy');
 const gameOverElement = document.querySelector('.game-over');
 const victoryElement = document.querySelector('.victory');
 
 // Inicialización del juego
-async function init() {
-    // Inicializar escena
+
+function init() {
+    // Escena
     scene = new THREE.Scene();
     clock = new THREE.Clock();
     
-    // Configurar cámara
+    // Cámara
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 1.7, 0); // Altura de los ojos
+    camera.position.set(0, 1.7, 0);
     
-    // Configurar renderer
+    // Renderer con WebXR habilitado
     renderer = new THREE.WebGLRenderer({ 
         canvas: document.getElementById('gameCanvas'),
         antialias: true 
@@ -53,121 +53,106 @@ async function init() {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     
-    // Habilitar XR
+    // Configuración WebXR
     renderer.xr.enabled = true;
-    
-    // Añadir botón VR
     document.body.appendChild(VRButton.createButton(renderer));
     
-    // Eventos para cambiar entre modos VR y no VR
-    renderer.xr.addEventListener('sessionstart', () => {
-        isVRMode = true;
-        camera.position.set(0, 1.7, 0);
-        if (controls) controls.dispose();
-        
-        // Ajustar UI para VR
-        document.querySelector('.game-ui').style.display = 'none';
-    });
-    
-    renderer.xr.addEventListener('sessionend', () => {
-        isVRMode = false;
-        initControls();
-        document.querySelector('.game-ui').style.display = 'block';
-    });
+    // Física, entorno y controles
     initAudio();
-    // Inicializar física
     initPhysics();
-    
-    // Crear entorno
     createEnvironment();
-    
-    // Cargar personaje
     loadCharacter();
-    
-    // Inicializar controles
     initControls();
     
-    // Iniciar bucle de renderizado
+    
+    // Iniciar bucle
     gameState.isRunning = true;
-    renderer.setAnimationLoop(animate);
+    animate();
     
-    
-    // Evento para redimensionar la ventana
     window.addEventListener('resize', onWindowResize);
-    
-    // Actualizar HUD
-    updateHUD();
 }
 
 // Cargar el modelo 3D del personaje
 function loadCharacter() {
-    character = new THREE.Group();
+    // Eliminamos el modelo visual del personaje (no es necesario en primera persona)
+    character = new THREE.Group(); // Solo un contenedor vacío para la cámara
     scene.add(character);
 
-    // Crear cuerpo físico para VR
-    const radius = 0.3;
-    const height = 1.8;
-    const shape = new CANNON.Cylinder(radius, radius, height, 8);
+    // Creamos un cuerpo físico más adecuado para primera persona
+    const radius = 0.3; // Radio más pequeño para mejor movimiento
+    const height = 1.8; // Altura aproximada de un jugador
+    const shape = new CANNON.Cylinder(radius, radius, height, 8); // Forma de cápsula
     
     characterBody = new CANNON.Body({
-        mass: 70,
+        mass: 70, // Masa similar a un humano (kg)
         shape: shape,
-        position: new CANNON.Vec3(0, 2, 0),
-        fixedRotation: true,
-        linearDamping: 0.5
+        position: new CANNON.Vec3(0, 2, 0), // Posición inicial sobre el suelo
+        material: physicsMaterial,
+        fixedRotation: true, // Evitar rotaciones no deseadas
+        linearDamping: 0.5 // Fricción del movimiento
     });
 
+    // Ajustamos la orientación de la cápsula (CANNON.Cylinder es vertical por defecto)
     characterBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+    
     world.addBody(characterBody);
 
+    // Configuración adicional recomendada
     characterBody.addEventListener('collide', (e) => {
-        if (e.contact.ni.y > 0.7) {
+        // Mejor detección de contacto con el suelo
+        if (e.contact.ni.y > 0.7) { // Si la normal del contacto apunta hacia arriba
             playerIsOnGround = true;
             jumpCooldown = 0;
         }
     });
 }
 
-// Actualizar HUD
+// Actualizar HUD con el contador de energía
 function updateHUD() {
     energyCountElement.textContent = gameState.energy;
-    totalEnergyElement.textContent = gameState.totalEnergy;
 }
 
-// Verificar condiciones del juego
+// Verificar victoria o derrota
 function checkGameConditions() {
     const y = characterBody.position.y;
     const vy = characterBody.velocity.y;
 
+    // Detectar si empieza a caer
     if (vy < -0.1 && fallStartHeight === null) {
         fallStartHeight = y;
     }
 
+    // Si deja de caer o toca el suelo, reseteamos
     if (vy >= 0) {
         fallStartHeight = null;
     }
 
-    if (fallStartHeight !== null && fallStartHeight - y > fallThreshold && !gameState.isGameOver) {
+    // Si ha caído desde una altura considerable
+    if (
+        fallStartHeight !== null &&
+        fallStartHeight - y > fallThreshold &&
+        !gameState.isGameOver
+    ) {
         gameState.isGameOver = true;
         showGameOverScreen();
     }
 
+    // Victoria - Recolectar todos los cristales
     if (gameState.energy >= gameState.totalEnergy && !gameState.isVictory) {
         gameState.isVictory = true;
         showVictoryScreen();
     }
 }
 
+
 // Mostrar pantalla de Game Over
 function showGameOverScreen() {
     gameState.isRunning = false;
     gameOverElement.style.display = 'block';
     
-    if (!isVRMode && controls) {
-        controls.unlock();
-    }
-    
-    pauseBackgroundMusic();
+    // Liberar controles del puntero
+    controls.unlock();
+    pauseBackgroundMusic(); 
 }
 
 // Mostrar pantalla de Victoria
@@ -175,72 +160,79 @@ function showVictoryScreen() {
     gameState.isRunning = false;
     victoryElement.style.display = 'block';
     
-    if (!isVRMode && controls) {
-        controls.unlock();
-    }
-    
-    pauseBackgroundMusic();
+    // Liberar controles del puntero
+    controls.unlock();
+    pauseBackgroundMusic(); 
 }
 
 // Reiniciar el juego
 function restartGame() {
+    // Ocultar pantallas de fin de juego
     gameOverElement.style.display = 'none';
     victoryElement.style.display = 'none';
     
+    // Reiniciar estado del juego
     gameState.energy = 0;
     gameState.isGameOver = false;
     gameState.isVictory = false;
     gameState.isRunning = true;
     
+    // Reposicionar al personaje
     characterBody.position.set(0, 5, 0);
     characterBody.velocity.set(0, 0, 0);
     
+    // Actualizar HUD
     updateHUD();
+    
+    // Reiniciar objetos del nivel
     resetLevel();
     
-    if (!isVRMode && controls) {
-        controls.lock();
-    }
-    
+    // Volver a bloquear el puntero
+    controls.lock();
     continueBackgroundMusic();
 }
 
 // Bucle de renderizado principal
 function animate() {
-    if (gameState.isRunning) {
-        const delta = clock.getDelta();
-        
-        world.step(timeStep);
-        character.position.copy(characterBody.position);
-        
-        if (mixer) {
-            mixer.update(delta);
+    renderer.setAnimationLoop(function() {
+        if (gameState.isRunning) {
+            const delta = clock.getDelta();
+            
+            // Actualizar física
+            world.step(timeStep);
+            character.position.copy(characterBody.position);
+            
+            if (mixer) mixer.update(delta);
+            
+            updateControls(delta);
+            updateEnvironment(delta);
+            checkCollisions();
+            checkGameConditions();
         }
         
-        updateControls(delta);
-        updateEnvironment(delta);
-        checkCollisions();
-        checkGameConditions();
-    }
-    
-    renderer.render(scene, camera);
+        renderer.render(scene, camera);
+    });
 }
 
-// Redimensionamiento de ventana
+// Ajustar tamaño al redimensionar la ventana
 function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+    vrEffect.setSize(window.innerWidth, window.innerHeight);
 }
 
-// Audio del juego
+
+// Función para inicializar el audio
 function initAudio() {
-    backgroundMusic = new Audio('../assets/sounds/Ascendente.mp3');
+    // Crear el objeto de audio
+    backgroundMusic = new Audio('../assets/sounds/Ascendente.mp3'); // Asegúrate de tener este archivo
     backgroundMusic.loop = true;
-    backgroundMusic.volume = 0.5;
+    backgroundMusic.volume = 0.5; // Volumen moderado
     document.addEventListener('click', startBackgroundMusic, { once: true });
 }
 
+// Función para iniciar la música
 function startBackgroundMusic() {
     if (!isMusicPlaying) {
         backgroundMusic.play()
@@ -249,13 +241,16 @@ function startBackgroundMusic() {
     }
 }
 
+// Función para pausar la música
 function pauseBackgroundMusic() {
+    console.log("pausar");
     if (isMusicPlaying) {
         backgroundMusic.pause();
         isMusicPlaying = false;
     }
 }
 
+// Función para continuar la música
 function continueBackgroundMusic() {
     if (!isMusicPlaying) {
         backgroundMusic.play()
@@ -264,6 +259,9 @@ function continueBackgroundMusic() {
     }
 }
 
+
 // Iniciar el juego cuando la página esté cargada
 window.addEventListener('DOMContentLoaded', init);
+
+// Función global para reiniciar el juego (llamada desde el botón en la pantalla de game over)
 window.restartGame = restartGame;

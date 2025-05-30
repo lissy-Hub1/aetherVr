@@ -1,16 +1,5 @@
-/**
- * AETHER RUN - Sistema de controles
- * Gestiona los controles del jugador por teclado y mouse
- */
-
 import * as THREE from 'three';
-import * as CANNON from 'cannon-es';
-import { VRButton } from 'three/addons/webxr/VRButton.js';
-
-export { 
-    initControls,
-    
-};
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
 // Estado de las teclas
 const keyState = {
@@ -25,62 +14,108 @@ const keyState = {
 
 // Dirección del movimiento
 const moveDirection = new THREE.Vector3();
-
-// Elemento del menú de pausa
+let vrEnabled = false;
+let controls;
 let pauseMenu;
 
-// Inicializar controles
+// Constantes de movimiento
+const WALK_SPEED = 5.0;
+const SPRINT_SPEED = 8.0;
+const JUMP_FORCE = 7.0;
+const MOVEMENT_SMOOTHING = 0.2;
+
 function initControls() {
-    // Configurar controles para VR
+    // Configurar controles para VR y no-VR
     if (renderer.xr.isPresenting) {
-        // Controles para VR
-        const controller1 = renderer.xr.getController(0);
-        const controller2 = renderer.xr.getController(1);
-        scene.add(controller1);
-        scene.add(controller2);
-        
-        // Configurar eventos de los controles VR
-        controller1.addEventListener('selectstart', () => {
-            keyState.jump = true;
-        });
-        
-        controller1.addEventListener('selectend', () => {
-            keyState.jump = false;
-        });
-        
-        // Configurar movimiento basado en la posición del controlador
-        // (Aquí puedes agregar más lógica para los controles VR)
+        setupVRControls();
     } else {
-        // Controles tradicionales (como antes)
-        controls = new THREE.PointerLockControls(camera, document.body);
-        character.add(camera);
-        
-        document.getElementById('gameCanvas').addEventListener('click', () => {
-            if (gameState.isRunning && !gameState.isGameOver && !gameState.isVictory) {
-                controls.lock();
-            }
-        });
-        
-        controls.addEventListener('lock', () => {
-            gameState.isRunning = true;
-            hidePauseMenu();
-        });
-        
-        controls.addEventListener('unlock', () => {
-            if (!gameState.isGameOver && !gameState.isVictory) {
-                gameState.isRunning = false;
-                if (!pauseMenu.style.display || pauseMenu.style.display === 'none') {
-                    showPauseMenu();
-                }
-            }
-        });
-        
-        setupKeyboardControls();
-        createPauseMenu();
+        setupDesktopControls();
     }
+    
+    // Configurar eventos de teclado (para ambos modos)
+    setupKeyboardControls();
+    createPauseMenu();
 }
 
-// Crear el menú de pausa
+function setupVRControls() {
+    vrEnabled = true;
+    
+    // Configurar gamepads para VR
+    const gamepadControls = {
+        moveForward: false,
+        moveBackward: false,
+        moveLeft: false,
+        moveRight: false,
+        jump: false
+    };
+    
+    // Escanear gamepads periódicamente
+    setInterval(() => {
+        if (!renderer.xr.isPresenting) return;
+        
+        const gamepads = navigator.getGamepads();
+        for (const gamepad of gamepads) {
+            if (gamepad && gamepad.mapping === 'xr-standard') {
+                // Mapear sticks y botones
+                const forwardAxis = gamepad.axes[3]; // Eje vertical del stick derecho
+                const strafeAxis = gamepad.axes[2];  // Eje horizontal del stick derecho
+                
+                gamepadControls.moveForward = forwardAxis < -0.5;
+                gamepadControls.moveBackward = forwardAxis > 0.5;
+                gamepadControls.moveLeft = strafeAxis < -0.5;
+                gamepadControls.moveRight = strafeAxis > 0.5;
+                gamepadControls.jump = gamepad.buttons[0].pressed;
+                
+                // Actualizar estado de las teclas
+                keyState.forward = gamepadControls.moveForward;
+                keyState.backward = gamepadControls.moveBackward;
+                keyState.left = gamepadControls.moveLeft;
+                keyState.right = gamepadControls.moveRight;
+                keyState.jump = gamepadControls.jump;
+                
+                break;
+            }
+        }
+    }, 100);
+    
+    // Configurar eventos de los controles VR
+    renderer.xr.addEventListener('sessionstart', () => {
+        vrEnabled = true;
+        if (controls) controls.dispose();
+    });
+    
+    renderer.xr.addEventListener('sessionend', () => {
+        vrEnabled = false;
+        setupDesktopControls();
+    });
+}
+
+function setupDesktopControls() {
+    vrEnabled = false;
+    
+    // Configurar controles de puntero para modo escritorio
+    controls = new PointerLockControls(camera, document.body);
+    character.add(camera);
+    
+    document.getElementById('gameCanvas').addEventListener('click', () => {
+        if (gameState.isRunning && !gameState.isGameOver && !gameState.isVictory) {
+            controls.lock();
+        }
+    });
+    
+    controls.addEventListener('lock', () => {
+        gameState.isRunning = true;
+        hidePauseMenu();
+    });
+    
+    controls.addEventListener('unlock', () => {
+        if (!gameState.isGameOver && !gameState.isVictory) {
+            gameState.isRunning = false;
+            showPauseMenu();
+        }
+    });
+}
+
 function createPauseMenu() {
     // Crear el contenedor del menú de pausa
     pauseMenu = document.createElement('div');
@@ -90,7 +125,7 @@ function createPauseMenu() {
     pauseMenu.style.left = '0';
     pauseMenu.style.width = '100%';
     pauseMenu.style.height = '100%';
-    pauseMenu.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'; // Fondo oscurecido semitransparente
+    pauseMenu.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
     pauseMenu.style.display = 'none';
     pauseMenu.style.flexDirection = 'column';
     pauseMenu.style.justifyContent = 'center';
@@ -107,7 +142,8 @@ function createPauseMenu() {
     // Botón para continuar el juego
     const continueButton = createButton('Continuar Juego', () => {
         hidePauseMenu();
-        controls.lock();
+        if (!vrEnabled) controls.lock();
+        gameState.isRunning = true;
     });
     
     // Botón para volver al inicio
@@ -124,7 +160,6 @@ function createPauseMenu() {
     document.body.appendChild(pauseMenu);
 }
 
-// Función auxiliar para crear botones
 function createButton(text, onClick) {
     const button = document.createElement('button');
     button.textContent = text;
@@ -151,22 +186,21 @@ function createButton(text, onClick) {
     return button;
 }
 
-// Mostrar el menú de pausa
 function showPauseMenu() {
     pauseMenu.style.display = 'flex';
-    pauseBackgroundMusic(); 
+    pauseBackgroundMusic();
 }
 
-// Ocultar el menú de pausa
 function hidePauseMenu() {
     pauseMenu.style.display = 'none';
     continueBackgroundMusic();
 }
 
-// Configurar los controles por teclado
 function setupKeyboardControls() {
     // Evento al presionar una tecla
     document.addEventListener('keydown', (event) => {
+        if (event.repeat) return;
+        
         switch (event.key.toLowerCase()) {
             case 'w':
             case 'arrowup':
@@ -178,11 +212,11 @@ function setupKeyboardControls() {
                 break;
             case 'a':
             case 'arrowleft':
-                keyState.right = true;
+                keyState.left = true;
                 break;
             case 'd':
             case 'arrowright':
-                keyState.left = true;
+                keyState.right = true;
                 break;
             case ' ':
                 keyState.jump = true;
@@ -212,11 +246,11 @@ function setupKeyboardControls() {
                 break;
             case 'a':
             case 'arrowleft':
-                keyState.right = false;
+                keyState.left = false;
                 break;
             case 'd':
             case 'arrowright':
-                keyState.left = false;
+                keyState.right = false;
                 break;
             case ' ':
                 keyState.jump = false;
@@ -231,7 +265,6 @@ function setupKeyboardControls() {
     });
 }
 
-// Alternar pausa del juego
 function togglePause() {
     if (gameState.isGameOver || gameState.isVictory) return;
     
@@ -239,70 +272,78 @@ function togglePause() {
     
     if (gameState.isRunning) {
         hidePauseMenu();
-        controls.lock();
-        
+        if (!vrEnabled) controls.lock();
     } else {
         showPauseMenu();
-        controls.unlock();
-        
-
+        if (!vrEnabled) controls.unlock();
     }
 }
 
-// Actualizar controles en cada frame
 function updateControls(delta) {
     if (!gameState.isRunning) return;
     
-    if (renderer.xr.isPresenting) {
-        // Lógica de movimiento para VR
-        const gamepad = navigator.getGamepads()[0];
-        if (gamepad) {
-            // Usar el joystick del controlador VR para movimiento
-            const xAxis = gamepad.axes[2] || 0;
-            const yAxis = gamepad.axes[3] || 0;
-            
-            moveDirection.set(xAxis, 0, -yAxis).normalize();
-            
-            // Rotación basada en la cabeza (ya manejada por VRControls)
-            const cameraDirection = camera.getWorldDirection(new THREE.Vector3());
-            cameraDirection.y = 0;
-            cameraDirection.normalize();
-            
-            const rightVector = new THREE.Vector3()
-                .crossVectors(camera.up, cameraDirection)
-                .normalize();
-            
-            const moveX = moveDirection.x * cameraDirection.x + moveDirection.z * rightVector.x;
-            const moveZ = moveDirection.x * cameraDirection.z + moveDirection.z * rightVector.z;
-            
-            moveDirection.set(moveX, 0, moveZ).normalize();
-            
-            // Sprint con botón secundario
-            keyState.sprint = gamepad.buttons[1]?.pressed || false;
-        }
+    // Calcular dirección de movimiento
+    moveDirection.set(0, 0, 0);
+    
+    // Obtener dirección de visión
+    const cameraDirection = new THREE.Vector3();
+    if (vrEnabled) {
+        camera.getWorldDirection(cameraDirection);
     } else {
-        // Lógica de movimiento tradicional (como antes)
-        moveDirection.set(0, 0, 0);
-        const cameraDirection = controls.getDirection(new THREE.Vector3(0, 0, -1)).normalize();
-        cameraDirection.y = 0;
-        
-        const rightVector = new THREE.Vector3()
-            .crossVectors(camera.up, cameraDirection)
-            .normalize();
-        
-        if (keyState.forward) moveDirection.add(cameraDirection);
-        if (keyState.backward) moveDirection.sub(cameraDirection);
-        if (keyState.left) moveDirection.sub(rightVector);
-        if (keyState.right) moveDirection.add(rightVector);
-        
-        if (moveDirection.length() > 0) {
-            moveDirection.normalize();
-        }
+        controls.getDirection(cameraDirection);
     }
     
+    cameraDirection.y = 0; // Mantener el movimiento horizontal
+    cameraDirection.normalize();
+    
+    // Vector derecha de la cámara
+    const rightVector = new THREE.Vector3()
+        .crossVectors(new THREE.Vector3(0, 1, 0), cameraDirection)
+        .normalize();
+    
+    // Calcular dirección según teclas presionadas
+    if (keyState.forward) moveDirection.add(cameraDirection);
+    if (keyState.backward) moveDirection.sub(cameraDirection);
+    if (keyState.left) moveDirection.sub(rightVector);
+    if (keyState.right) moveDirection.add(rightVector);
+    
+    // Normalizar la dirección si hay movimiento
+    if (moveDirection.length() > 0) {
+        moveDirection.normalize();
+    }
+    
+    // Aplicar movimiento con el sistema de física
     moveCharacter(moveDirection, keyState.sprint);
     
+    // Manejar salto
     if (keyState.jump) {
         jump();
+        keyState.jump = false; // Resetear estado de salto
     }
 }
+
+function moveCharacter(direction, sprinting) {
+    if (!characterBody) return;
+    
+    const speed = sprinting ? SPRINT_SPEED : WALK_SPEED;
+    const velocity = characterBody.velocity;
+    
+    // Suavizar el movimiento
+    const targetVelocityX = direction.x * speed;
+    const targetVelocityZ = direction.z * speed;
+    
+    velocity.x = THREE.MathUtils.lerp(velocity.x, targetVelocityX, MOVEMENT_SMOOTHING);
+    velocity.z = THREE.MathUtils.lerp(velocity.z, targetVelocityZ, MOVEMENT_SMOOTHING);
+    
+    // Mantener velocidad vertical (gravedad)
+    characterBody.velocity = velocity;
+}
+
+function jump() {
+    if (!characterBody || !playerIsOnGround) return;
+    
+    characterBody.velocity.y = JUMP_FORCE;
+    playerIsOnGround = false;
+}
+
+export { initControls, updateControls, togglePause };
